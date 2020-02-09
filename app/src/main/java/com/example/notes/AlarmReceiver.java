@@ -29,8 +29,8 @@ public class AlarmReceiver extends BroadcastReceiver {
         Bundle bundle = intent.getExtras();
         SmsManager smsManager = SmsManager.getDefault();
 
-        String smsText = bundle.getString("alarm_message");
-        String smsNumber = bundle.getString("number");
+        String smsText = bundle.getString("msg");
+        String smsNumber = bundle.getString("num");
 
         smsManager.sendTextMessage(smsNumber, null, smsText, null, null);
         Log.d("TAG", "onCreate: title: SENT SUCCESSFULLY");

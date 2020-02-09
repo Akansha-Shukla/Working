@@ -36,6 +36,7 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
     String setTime = " ", setDate = " ";
     DatePickerDialog picker;
     final Calendar myCalendar = Calendar.getInstance();
+    long id;
 
 
     EditText title, number,message ,date, time;
@@ -122,6 +123,22 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
     private void delete() {
 
 
+       NoteDatabase database= new NoteDatabase(getApplicationContext());
+        database.delete(id);
+        Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
+        startActivity(new Intent(getApplicationContext(), MainActivity.class));
+
+        Intent myIntent = new Intent(Add_Note.this, AlarmService.class);
+
+
+
+        PendingIntent pendingIntent = PendingIntent.getService(Add_Note.this, 0, myIntent, 0);
+
+        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+        alarmManager.cancel(pendingIntent);
+        Toast.makeText(Add_Note.this, "Cancel!", Toast.LENGTH_LONG).show();
+
+
     }
 
     private void save() {
@@ -135,7 +152,7 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
          ti =time.getText().toString();
 
         Note note = new Note(t, n, m,d,ti);
-        long id = database.addNote(note);
+        id= database.addNote(note);
 
         Toast.makeText(getApplicationContext(), "Your SMS has been scheduled...", Toast.LENGTH_LONG).show();
 
@@ -161,22 +178,29 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
     }
     public void sendMessage(long id,String msg,String num, long time ){
 
+        Intent myIntent = new Intent(Add_Note.this, AlarmService.class);
+
+        Bundle bundle = new Bundle();
+        bundle.putCharSequence("SmsNumber", num);
+        bundle.putCharSequence("SmsText", msg);
+        myIntent.putExtras(bundle);
+
+        PendingIntent pendingIntent = PendingIntent.getService(Add_Note.this, 0, myIntent, 0);
+
+        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(time);
-       int ID = Integer.valueOf(String.valueOf(id));
-        Intent intentBoot = new Intent(getApplicationContext(), AlarmReceiver.class);
-        intentBoot.putExtra("id",id);
-        intentBoot.putExtra("msg",msg);
-        intentBoot.putExtra("num",num);
-        Log.d("TAG", "Send Message : ");
 
-        intentBoot.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
 
-        PendingIntent pendingAlarm = PendingIntent.getBroadcast(
-                this, 0, intentBoot, PendingIntent.FLAG_UPDATE_CURRENT);
-        AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
-        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingAlarm);
+        Toast.makeText(Add_Note.this,
+                "Start Alarm with \n" +
+                        "smsNumber = " + num + "\n" +
+                        "smsText = " + msg,
+                Toast.LENGTH_LONG).show();
+
+
     }
 
 

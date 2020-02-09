@@ -3,7 +3,9 @@ package com.example.notes;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlarmManager;
 import android.app.DatePickerDialog;
+import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -17,7 +19,10 @@ import android.widget.EditText;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 public class EditNote extends AppCompatActivity implements View.OnClickListener{
 
@@ -73,6 +78,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
                 Log.d("TAG", "save clicked: ");
 
 
+
                 break;
             case R.id.delete:
 
@@ -99,11 +105,31 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
         Note note = new Note(id,t, n, m,d,ti);
         Log.d("TAG", "OnSave id: "+ note.getID());
         long _id = database.update(note);
+
+
+
+
         Log.d("TAG", "onSave: update id: "+ _id);
         if(_id<0)
             Toast.makeText(getApplicationContext(),"update failed", Toast.LENGTH_LONG).show();
         else {
             Toast.makeText(getApplicationContext(), "updated successfully", Toast.LENGTH_LONG).show();
+            long timeInMilliseconds;
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            try
+            {
+                Date mDate = sdf.parse(d);
+
+                timeInMilliseconds = mDate.getTime();
+                Log.d("TAG", "Save time " + timeInMilliseconds);
+                sendMessage(id,m,n,timeInMilliseconds);
+
+
+
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
             Intent intent = new Intent(getApplicationContext(), NoteDetail.class);
             intent.putExtra("ID", note.getID());
             startActivity(intent);
@@ -116,6 +142,35 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
 
 
     }
+
+
+    public void sendMessage(long id,String msg,String num, long time ){
+
+        Intent myIntent = new Intent(EditNote.this, AlarmService.class);
+
+        Bundle bundle = new Bundle();
+        bundle.putCharSequence("SmsNumber", num);
+        bundle.putCharSequence("SmsText", msg);
+        myIntent.putExtras(bundle);
+
+        PendingIntent pendingIntent = PendingIntent.getService(EditNote.this, 0, myIntent, 0);
+
+        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(time);
+
+        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+
+        Toast.makeText(EditNote.this,
+                "Start Alarm with \n" +
+                        "smsNumber = " + num + "\n" +
+                        "smsText = " + msg,
+                Toast.LENGTH_LONG).show();
+
+
+    }
+
     private void gotoMain() {
 
         Intent intent = new Intent(this, MainActivity.class);
