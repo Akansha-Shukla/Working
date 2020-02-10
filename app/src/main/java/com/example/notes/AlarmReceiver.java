@@ -41,6 +41,58 @@ public class AlarmReceiver extends BroadcastReceiver {
         SmsManager smsManager = SmsManager.getDefault();
         smsManager.sendTextMessage(smsNumberToSend, null, smsTextToSend, pi, null);
         Log.d("TAG", "SMS SENT Service");
+        deliverNotification(context);
 
     }
+    
+    private void deliverNotification(Context context) {
+
+
+        // Build the notification
+        Log.d("TAG", "deliverNotification: ");
+
+
+        String idChannel = "my_channel_01";
+        Intent mainIntent;
+
+        mainIntent = new Intent(context, MainActivity.class);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, mainIntent, 0);
+
+        NotificationManager mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        NotificationChannel mChannel = null;
+        // The id of the channel.
+
+        int importance = NotificationManager.IMPORTANCE_HIGH;
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, null);
+        builder.setContentTitle(context.getString(R.string.app_name))
+                .setSmallIcon(R.drawable.ic_date_)
+                .setContentIntent(pendingIntent)
+                .setContentText("SMS Sent successfully");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            mChannel = new NotificationChannel(idChannel, context.getString(R.string.app_name), importance);
+            // Configure the notification channel.
+            mChannel.setDescription("Notification channel");
+            mChannel.enableLights(true);
+            mChannel.setLightColor(Color.RED);
+            mChannel.setVibrationPattern(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
+            mNotificationManager.createNotificationChannel(mChannel);
+        } else {
+            builder.setContentTitle(context.getString(R.string.app_name))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+                    .setVibrate(new long[]{100, 250})
+                    .setLights(Color.YELLOW, 500, 5000)
+                    .setAutoCancel(true);
+        }
+        mNotificationManager.notify(1, builder.build());
+
+        Log.d("TAG", "delivered Notification: ");
+    }
+
+
+
 }
