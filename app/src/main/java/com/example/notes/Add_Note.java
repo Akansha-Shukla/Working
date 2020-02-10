@@ -10,7 +10,9 @@ import android.app.DatePickerDialog;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -24,6 +26,7 @@ import android.widget.EditText;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -32,10 +35,10 @@ import java.util.Date;
 public class Add_Note extends AppCompatActivity implements View.OnClickListener{
 
     Toolbar toolbar;
-    int mHour, mMinute, mYear, mMonth, mDay;
+    int mHour, mMinute,mSecond, mYear, mMonth, mDay;
     String setTime = " ", setDate = " ";
     DatePickerDialog picker;
-    final Calendar myCalendar = Calendar.getInstance();
+    final Calendar c = Calendar.getInstance();
     long id;
 
 
@@ -100,7 +103,11 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
         switch (item.getItemId()){
 
             case R.id.save:
-                save();
+                try {
+                    save();
+                } catch (ParseException ex) {
+                    ex.printStackTrace();
+                }
                 gotoMain();
 
                 break;
@@ -128,7 +135,7 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
         Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
         startActivity(new Intent(getApplicationContext(), MainActivity.class));
 
-        Intent myIntent = new Intent(Add_Note.this, AlarmService.class);
+        Intent myIntent = new Intent(Add_Note.this, AlarmReceiver.class);
 
 
 
@@ -141,7 +148,7 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
 
     }
 
-    private void save() {
+    private void save() throws ParseException {
 
        NoteDatabase database= new NoteDatabase(this);
         String t, n, m,d, ti;
@@ -160,11 +167,18 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
 
         long timeInMilliseconds;
 
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+
+            String date_time = d+ " " + ti;
+            Log.d("TAG", "Save Date-Time: " + date_time);
+
+        /*SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
         try
         {
             Date mDate = sdf.parse(d);
+            Log.d("TAG", "Save mDate: " + mDate.toString());
           timeInMilliseconds = mDate.getTime();
+
             Log.d("TAG", "Save time " + timeInMilliseconds);
             sendMessage(id,m,n,timeInMilliseconds);
 
@@ -172,27 +186,31 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
 
         } catch (ParseException e) {
             e.printStackTrace();
-        }
+        }*/
 
+        sendMessage(id,m,n,c);
 
     }
-    public void sendMessage(long id,String msg,String num, long time ){
+    public void sendMessage(long id,String msg,String num, Calendar c){
 
-        Intent myIntent = new Intent(Add_Note.this, AlarmService.class);
+        Intent myIntent = new Intent(Add_Note.this, AlarmReceiver.class);
+        Log.d("TAG", "Send Message time: " + c.getTimeInMillis());
 
         Bundle bundle = new Bundle();
         bundle.putCharSequence("SmsNumber", num);
         bundle.putCharSequence("SmsText", msg);
+        Log.d("TAG", "Send Message: num, msg " + num + msg);
         myIntent.putExtras(bundle);
 
-        PendingIntent pendingIntent = PendingIntent.getService(Add_Note.this, 0, myIntent, 0);
+        AlarmManager alarmManager = (AlarmManager) getApplicationContext().getSystemService(getApplicationContext().ALARM_SERVICE);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(Add_Note.this, 0, myIntent, 0);
 
-        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(time);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 
-        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+
+            alarmManager.set(AlarmManager.RTC,  c.getTimeInMillis(), pendingIntent);
+        }
 
         Toast.makeText(Add_Note.this,
                 "Start Alarm with \n" +
@@ -209,7 +227,7 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
 
 
         if (view == date) {
-            final Calendar c = Calendar.getInstance();
+
             mYear = c.get(Calendar.YEAR);
             mMonth = c.get(Calendar.MONTH);
             mDay = c.get(Calendar.DAY_OF_MONTH);
@@ -223,6 +241,9 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
                                               int monthOfYear, int dayOfMonth) {
 
                             date.setText(dayOfMonth + "-" + (monthOfYear + 1) + "-" + year);
+                            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                            c.set(Calendar.MONTH, monthOfYear);
+                            c.set(Calendar.YEAR, year);
 
                         }
                     }, mYear, mMonth, mDay);
@@ -231,9 +252,10 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
         if (view == time) {
 
             // Get Current Time
-            final Calendar c = Calendar.getInstance();
+
             mHour = c.get(Calendar.HOUR_OF_DAY);
             mMinute = c.get(Calendar.MINUTE);
+            mSecond = c.get(Calendar.SECOND);
 
             // Launch Time Picker Dialog
             TimePickerDialog timePickerDialog = new TimePickerDialog(this,
@@ -243,11 +265,25 @@ public class Add_Note extends AppCompatActivity implements View.OnClickListener{
                         public void onTimeSet(TimePicker view, int hourOfDay,
                                               int minute) {
 
-                            time.setText(hourOfDay + ":" + minute);
+                                time.setText(hourOfDay + ":" + padding(minute)+":00");
+                            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                            c.set(Calendar.MINUTE, minute);
+                            c.set(Calendar.SECOND, 0);
+
+
+
                         }
+
                     }, mHour, mMinute, false);
             timePickerDialog.show();
         }
+    }
+
+    private String padding(int time) {
+        if(time < 10)
+            return "0"+time;
+        return String.valueOf(time);
+
     }
 }
 

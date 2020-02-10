@@ -6,9 +6,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.AlarmManager;
 import android.app.DatePickerDialog;
 import android.app.PendingIntent;
+import android.app.Service;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.IBinder;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -30,6 +33,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
     NoteDatabase database;
     Note note;
     EditText title, message, date, time, number;
+    Calendar c = Calendar.getInstance();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -107,29 +111,21 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
         long _id = database.update(note);
 
 
-
+        String date_time = d+ " " + ti + ":00";
+        Log.d("TAG", "Date_time " + date_time);
 
         Log.d("TAG", "onSave: update id: "+ _id);
         if(_id<0)
             Toast.makeText(getApplicationContext(),"update failed", Toast.LENGTH_LONG).show();
         else {
             Toast.makeText(getApplicationContext(), "updated successfully", Toast.LENGTH_LONG).show();
-            long timeInMilliseconds;
-
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            try
-            {
-                Date mDate = sdf.parse(d);
-
-                timeInMilliseconds = mDate.getTime();
-                Log.d("TAG", "Save time " + timeInMilliseconds);
-                sendMessage(id,m,n,timeInMilliseconds);
+            Log.d("TAG", "updated");
 
 
 
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
+            sendMessage(id,m,n,c.getTimeInMillis());
+
+
             Intent intent = new Intent(getApplicationContext(), NoteDetail.class);
             intent.putExtra("ID", note.getID());
             startActivity(intent);
@@ -146,7 +142,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
 
     public void sendMessage(long id,String msg,String num, long time ){
 
-        Intent myIntent = new Intent(EditNote.this, AlarmService.class);
+        Intent myIntent = new Intent(EditNote.this, AlarmReceiver.class);
 
         Bundle bundle = new Bundle();
         bundle.putCharSequence("SmsNumber", num);
@@ -160,7 +156,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(time);
 
-        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        alarmManager.set(AlarmManager.RTC,  c.getTimeInMillis(), pendingIntent);
 
         Toast.makeText(EditNote.this,
                 "Start Alarm with \n" +
@@ -195,6 +191,9 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
                                               int monthOfYear, int dayOfMonth) {
 
                             date.setText(dayOfMonth + "-" + (monthOfYear + 1) + "-" + year);
+                            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                            c.set(Calendar.MONTH, monthOfYear);
+                            c.set(Calendar.YEAR, year);
 
                         }
                     }, mYear, mMonth, mDay);
@@ -215,10 +214,102 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
                         public void onTimeSet(TimePicker view, int hourOfDay,
                                               int minute) {
 
-                            time.setText(hourOfDay + ":" + minute);
+                                time.setText(hourOfDay + ":" + padding(minute)+":00");
+                            c.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                            c.set(Calendar.MINUTE, minute);
+                            c.set(Calendar.SECOND, 0);
+
+
+
                         }
                     }, mHour, mMinute, false);
             timePickerDialog.show();
         }
     }
+    private String padding(int time) {
+        if(time < 10)
+            return "0"+time;
+        return String.valueOf(time);
+
+    }
 }
+
+
+
+
+
+
+
+
+
+/*
+package com.example.notes;
+
+        import android.app.Service;
+        import android.content.Intent;
+        import android.os.Bundle;
+        import android.os.IBinder;
+        import android.telephony.SmsManager;
+        import android.util.Log;
+        import android.widget.Toast;
+
+        import androidx.annotation.Nullable;
+
+public class AlarmService extends Service {
+    String smsNumberToSend, smsTextToSend;
+
+    @Override
+    public void onCreate() {
+        // TODO Auto-generated method stub
+
+        Toast.makeText(this, "MyAlarmService.onCreate()", Toast.LENGTH_LONG).show();
+        Log.d("TAG", "onCreate Service");
+    }
+
+    @Override
+    public IBinder onBind(Intent arg0) {
+        // TODO Auto-generated method stub
+        Toast.makeText(this, "MyAlarmService.onBind()", Toast.LENGTH_LONG).show();
+        Log.d("TAG", "onBind Service");
+        return null;
+    }
+
+    @Override
+    public void onDestroy() {
+        // TODO Auto-generated method stub
+        super.onDestroy();
+        Toast.makeText(this, "MyAlarmService.onDestroy()", Toast.LENGTH_LONG).show();
+        Log.d("TAG", "onDestroy Service");
+    }
+
+    @Override
+    public void onStart(Intent intent, int startId) {
+        // TODO Auto-generated method stub
+        super.onStart(intent, startId);
+
+        Log.d("TAG", "onStart Service");
+        Bundle bundle = intent.getExtras();
+        smsNumberToSend = (String) bundle.getCharSequence("SmsNumber");
+        smsTextToSend = (String) bundle.getCharSequence("SmsText");
+
+        Log.d("TAG", "onStarte Service: Numbers extracted");
+        Toast.makeText(this, "MyAlarmService.onStart()", Toast.LENGTH_LONG).show();
+        Toast.makeText(this,
+                "MyAlarmService.onStart() with \n" +
+                        "smsNumberToSend = " + smsNumberToSend + "\n" +
+                        "smsTextToSend = " + smsTextToSend,
+                Toast.LENGTH_LONG).show();
+
+        SmsManager smsManager = SmsManager.getDefault();
+        smsManager.sendTextMessage(smsNumberToSend, null, smsTextToSend, null, null);
+        Log.d("TAG", "SMS SENT Service");
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        // TODO Auto-generated method stub
+        Toast.makeText(this, "MyAlarmService.onUnbind()", Toast.LENGTH_LONG).show();
+        return super.onUnbind(intent);
+    }
+
+}*/
