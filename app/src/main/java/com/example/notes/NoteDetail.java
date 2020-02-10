@@ -3,6 +3,10 @@ package com.example.notes;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlarmManager;
+import android.app.AlertDialog;
+import android.app.PendingIntent;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,12 +20,14 @@ public class NoteDetail extends AppCompatActivity {
 
     NoteDatabase database ;
     long id;
+    Add_Note instance;
     Note note;
             TextView title, number, message, date, time;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_note_detail);
+        instance = Add_Note.getInstance();
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent intent = getIntent();
@@ -69,13 +75,55 @@ public class NoteDetail extends AppCompatActivity {
 
         if(item.getItemId() == R.id.deleteNote){
 
-            database.delete(id);
-            Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
-            startActivity(new Intent(getApplicationContext(), MainActivity.class));
-
+            delete();
 
 
         }
         return super.onOptionsItemSelected(item);
+    }
+
+
+
+    private void delete() {
+        AlertDialog.Builder adb = new AlertDialog.Builder(this);
+        adb.setCancelable(true);
+        adb.setMessage("You want to Delete the note?")
+                .setTitle("Are you sure")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+
+
+                        note.setStatus("OFF");
+                        Intent myIntent = new Intent(instance, AlarmReceiver.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putCharSequence("Status","OFF");
+                        myIntent.putExtras(bundle);
+
+                        PendingIntent pendingIntent = PendingIntent.getBroadcast(instance, (int)id, myIntent,PendingIntent.FLAG_UPDATE_CURRENT);
+
+                        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+                        alarmManager.cancel(pendingIntent);
+
+                        Toast.makeText(NoteDetail.this, "Alarm Cancel!", Toast.LENGTH_LONG).show();
+                        database.delete(id);
+
+                        Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
+                        startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                        database.delete(id);
+                        Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
+                        startActivity(new Intent(getApplicationContext(), MainActivity.class));
+
+                    }
+
+                }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+        AlertDialog alert = adb.create();
+        alert.show();
     }
 }
