@@ -16,8 +16,8 @@ import java.util.List;
 
 public class NoteDatabase extends SQLiteOpenHelper {
 
-    public static final String DATABASE_NAME= "Notes_Database1";
-    public static final String TABLE_NAME= "Notes_Table1";
+    public static final String DATABASE_NAME= "Notes_Database";
+    public static final String TABLE_NAME= "Notes_Table";
     public static final int DATABASE_VERSION= 1;
     public static final String ID= "_ID";
     public static final String TITLE= "Title";
