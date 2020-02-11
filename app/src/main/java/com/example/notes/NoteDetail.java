@@ -20,14 +20,14 @@ public class NoteDetail extends AppCompatActivity {
 
     NoteDatabase database ;
     long id;
-    Add_Note instance;
+
     Note note;
             TextView title, number, message, date, time;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_note_detail);
-        instance = Add_Note.getInstance();
+
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent intent = getIntent();
@@ -92,18 +92,14 @@ public class NoteDetail extends AppCompatActivity {
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-
-
-
-                        note.setStatus("OFF");
-                        Intent myIntent = new Intent(instance, AlarmReceiver.class);
+                        Intent myIntent = new Intent(getApplicationContext(), AlarmReceiver.class);
                         Bundle bundle = new Bundle();
                         bundle.putCharSequence("Status","OFF");
                         myIntent.putExtras(bundle);
 
-                        PendingIntent pendingIntent = PendingIntent.getBroadcast(instance, (int)id, myIntent,PendingIntent.FLAG_UPDATE_CURRENT);
+                        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplicationContext(), (int)note.getID(), myIntent,PendingIntent.FLAG_UPDATE_CURRENT);
 
-                        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+                        AlarmManager alarmManager = (AlarmManager)getSystemService(getApplicationContext().ALARM_SERVICE);
                         alarmManager.cancel(pendingIntent);
 
                         Toast.makeText(NoteDetail.this, "Alarm Cancel!", Toast.LENGTH_LONG).show();
