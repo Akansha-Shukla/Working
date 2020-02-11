@@ -3,7 +3,7 @@
 ##############################################################################
 ##
 ##  Gradle start up script for UN*X
-##
+##https://www.nds.ruhr-uni-bochum.de/media/attachments/files/2011/10/main.pdf
 ##############################################################################
 
 # Attempt to set APP_HOME
