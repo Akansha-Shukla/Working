@@ -4,13 +4,16 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.AlarmManager;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.TimePickerDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.Menu;
@@ -32,6 +35,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
     long id;
     NoteDatabase database;
     Note note;
+    Add_Note instance ;
     EditText title, message, date, time, number;
     Calendar c = Calendar.getInstance();
     @Override
@@ -39,7 +43,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_note);
 
-        Intent intent = getIntent();
+            Intent intent = getIntent();
         id = intent.getLongExtra("ID", 0);
         Log.d("TAG", "onCreate: id: "+ id);
 
@@ -81,25 +85,31 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
                 save(id);
                 Log.d("TAG", "save clicked: ");
 
-
-
                 break;
             case R.id.delete:
 
-                database.delete(id);
-                Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
-                startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                delete();
                 break;
 
         }
 
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    public void onBackPressed() {
+        Intent intent = new Intent(this,NoteDetail.class);
+        intent.putExtra("ID",note.getID());
+        startActivity(intent);
+
+    }
+
     private void save(long id) {
 
         NoteDatabase database= new NoteDatabase(this);
         Log.d("TAG", "onSAVE");
         String t, n, m,d, ti;
+        long _id;
         t = title.getText().toString();
         n = number.getText().toString();
         m = message.getText().toString();
@@ -107,62 +117,129 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
         ti =time.getText().toString();
         Log.d("TAG", "OnSave title: "+ t);
         Note note = new Note(id,t, n, m,d,ti);
-        Log.d("TAG", "OnSave id: "+ note.getID());
-        long _id = database.update(note);
-
-
-        String date_time = d+ " " + ti + ":00";
-        Log.d("TAG", "Date_time " + date_time);
-
-        Log.d("TAG", "onSave: update id: "+ _id);
-        if(_id<0)
-            Toast.makeText(getApplicationContext(),"update failed", Toast.LENGTH_LONG).show();
-        else {
-            Toast.makeText(getApplicationContext(), "updated successfully", Toast.LENGTH_LONG).show();
-            Log.d("TAG", "updated");
-
-
-
-            sendMessage(id,m,n,c.getTimeInMillis());
-
-
-            Intent intent = new Intent(getApplicationContext(), NoteDetail.class);
-            intent.putExtra("ID", note.getID());
-            startActivity(intent);
+        if(n.isEmpty()||d.isEmpty()||ti.isEmpty()){
+            Empty();
         }
+        else {
+            Calendar check = Calendar.getInstance();
+            if(check.getTimeInMillis() > c.getTimeInMillis()){
 
+                AlertDialog.Builder adb = new AlertDialog.Builder(this);
+                adb.setCancelable(true);
+                adb.setMessage("Chosen time has passed already.")
+                        .setTitle("Choose different Time")
+                        .setNegativeButton("Back", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.cancel();
+                            }
+                        });
+                AlertDialog alert = adb.create();
+                alert.show();
 
+            }
+            else {
+                _id = database.update(note);
+                if (_id < 0)
+                    Toast.makeText(getApplicationContext(), "update failed", Toast.LENGTH_LONG).show();
+                else {
+                    sendMessage(note.getID(), m, n, c);
 
-
-        Log.d("TAG", "Save ID: " + id);
-
+                }
+                Log.d("TAG", "Save ID: " + id);
+            }
+        }
 
     }
 
+    private void Empty() {
+        AlertDialog.Builder adb = new AlertDialog.Builder(this);
+        adb.setCancelable(true);
+        adb.setMessage("Mandatory Fields can't be empty")
+                .setTitle("Required")
+                .setNegativeButton("Back", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+        AlertDialog alert = adb.create();
+        alert.show();
+    }
 
-    public void sendMessage(long id,String msg,String num, long time ){
 
-        Intent myIntent = new Intent(EditNote.this, AlarmReceiver.class);
+    private void delete() {
 
-        Bundle bundle = new Bundle();
-        bundle.putCharSequence("SmsNumber", num);
-        bundle.putCharSequence("SmsText", msg);
-        myIntent.putExtras(bundle);
+        AlertDialog.Builder adb = new AlertDialog.Builder(this);
+        adb.setCancelable(true);
+        adb.setMessage("You want to Delete the note?")
+                .setTitle("Are you sure")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
 
-        PendingIntent pendingIntent = PendingIntent.getService(EditNote.this, 0, myIntent, 0);
 
-        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(time);
+//                        note.setStatus("OFF");
+                        Intent myIntent = new Intent(getApplicationContext(), AlarmReceiver.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putCharSequence("Status","OFF");
+                        myIntent.putExtras(bundle);
 
-        alarmManager.set(AlarmManager.RTC,  c.getTimeInMillis(), pendingIntent);
+                        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplicationContext(), (int)note.getID(), myIntent,PendingIntent.FLAG_UPDATE_CURRENT);
 
-        Toast.makeText(EditNote.this,
-                "Start Alarm with \n" +
-                        "smsNumber = " + num + "\n" +
-                        "smsText = " + msg,
-                Toast.LENGTH_LONG).show();
+                        AlarmManager alarmManager = (AlarmManager)getSystemService(getApplicationContext().ALARM_SERVICE);
+                        alarmManager.cancel(pendingIntent);
+
+                        Toast.makeText(getApplicationContext(), "Alarm Cancel!", Toast.LENGTH_LONG).show();
+                        database.delete(id);
+
+                        Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
+                        startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                        database.delete(id);
+                        Toast.makeText(getApplicationContext(),"Delete successfully", Toast.LENGTH_LONG).show();
+                        startActivity(new Intent(getApplicationContext(), MainActivity.class));
+
+                    }
+
+                }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+        AlertDialog alert = adb.create();
+        alert.show();
+    }
+    public void sendMessage(long id,String msg,String num, Calendar c ){
+
+        Log.d("TAG", "sendMessage: ");
+
+
+            Toast.makeText(getApplicationContext(), "updated successfully", Toast.LENGTH_LONG).show();
+            Intent myIntent = new Intent(getApplicationContext(), AlarmReceiver.class);
+
+            Bundle bundle = new Bundle();
+            bundle.putCharSequence("SmsNumber", num);
+            bundle.putCharSequence("SmsText", msg);
+            bundle.putCharSequence("Status", "ON");
+            myIntent.putExtras(bundle);
+
+            Log.d("TAG", "sendMessage: Intent created");
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplicationContext(), (int) note.getID(), myIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+            AlarmManager alarmManager = (AlarmManager) getApplicationContext().getSystemService(getApplicationContext().ALARM_SERVICE);
+
+            alarmManager.set(AlarmManager.RTC, c.getTimeInMillis(), pendingIntent);
+
+            Toast.makeText(EditNote.this,
+                    "Start Alarm with \n" +
+                            "smsNumber = " + num + "\n" +
+                            "smsText = " + msg,
+                    Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(getApplicationContext(), NoteDetail.class);
+            intent.putExtra("ID", note.getID());
+            startActivity(intent);
 
 
     }
@@ -177,7 +254,7 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
     public void onClick(View view) {
 
         if (view == date) {
-            final Calendar c = Calendar.getInstance();
+
             int mYear = c.get(Calendar.YEAR);
             int mMonth = c.get(Calendar.MONTH);
             int mDay = c.get(Calendar.DAY_OF_MONTH);
@@ -197,12 +274,13 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
 
                         }
                     }, mYear, mMonth, mDay);
+            datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis());
             datePickerDialog.show();
         }
         if (view == time) {
 
             // Get Current Time
-            final Calendar c = Calendar.getInstance();
+
             int mHour = c.get(Calendar.HOUR_OF_DAY);
             int mMinute = c.get(Calendar.MINUTE);
 
@@ -233,83 +311,3 @@ public class EditNote extends AppCompatActivity implements View.OnClickListener{
 
     }
 }
-
-
-
-
-
-
-
-
-
-/*
-package com.example.notes;
-
-        import android.app.Service;
-        import android.content.Intent;
-        import android.os.Bundle;
-        import android.os.IBinder;
-        import android.telephony.SmsManager;
-        import android.util.Log;
-        import android.widget.Toast;
-
-        import androidx.annotation.Nullable;
-
-public class AlarmService extends Service {
-    String smsNumberToSend, smsTextToSend;
-
-    @Override
-    public void onCreate() {
-        // TODO Auto-generated method stub
-
-        Toast.makeText(this, "MyAlarmService.onCreate()", Toast.LENGTH_LONG).show();
-        Log.d("TAG", "onCreate Service");
-    }
-
-    @Override
-    public IBinder onBind(Intent arg0) {
-        // TODO Auto-generated method stub
-        Toast.makeText(this, "MyAlarmService.onBind()", Toast.LENGTH_LONG).show();
-        Log.d("TAG", "onBind Service");
-        return null;
-    }
-
-    @Override
-    public void onDestroy() {
-        // TODO Auto-generated method stub
-        super.onDestroy();
-        Toast.makeText(this, "MyAlarmService.onDestroy()", Toast.LENGTH_LONG).show();
-        Log.d("TAG", "onDestroy Service");
-    }
-
-    @Override
-    public void onStart(Intent intent, int startId) {
-        // TODO Auto-generated method stub
-        super.onStart(intent, startId);
-
-        Log.d("TAG", "onStart Service");
-        Bundle bundle = intent.getExtras();
-        smsNumberToSend = (String) bundle.getCharSequence("SmsNumber");
-        smsTextToSend = (String) bundle.getCharSequence("SmsText");
-
-        Log.d("TAG", "onStarte Service: Numbers extracted");
-        Toast.makeText(this, "MyAlarmService.onStart()", Toast.LENGTH_LONG).show();
-        Toast.makeText(this,
-                "MyAlarmService.onStart() with \n" +
-                        "smsNumberToSend = " + smsNumberToSend + "\n" +
-                        "smsTextToSend = " + smsTextToSend,
-                Toast.LENGTH_LONG).show();
-
-        SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(smsNumberToSend, null, smsTextToSend, null, null);
-        Log.d("TAG", "SMS SENT Service");
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        // TODO Auto-generated method stub
-        Toast.makeText(this, "MyAlarmService.onUnbind()", Toast.LENGTH_LONG).show();
-        return super.onUnbind(intent);
-    }
-
-}*/
